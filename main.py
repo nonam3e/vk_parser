@@ -44,6 +44,7 @@ def save_as_json(content, file, fmt, new=True):
     output.close()
 
 
+# different funcs for different formats makes code flexible
 save = {
     "csv": save_as_csv,
     "tsv": save_as_tsv,
@@ -62,13 +63,15 @@ def parse():
     args = args_parser.parse_args()
 
     try:
-        n = requests.get(f"https://api.vk.com/method/friends.get?access_token={args.token}&user_id={args.id}&count=1&v=5.131").json()
-        if n.get("error", 0) != 0:
+        n = requests.get(
+            f"https://api.vk.com/method/friends.get?access_token={args.token}&user_id={args.id}&count=1&v=5.131").json()
+        if n.get("error", 0) != 0:  # checking input
             logging.warning(n["error"]["error_msg"])
             raise SystemExit(n["error"]["error_msg"])
-        n = n["response"]["count"]
-        for i in range(0, n, 1000):
-            query = f"https://api.vk.com/method/friends.get?access_token={args.token}&user_id={args.id}&order=name&offset={i}&count=1000&fields=country,city,bdate,sex&v=5.131"
+        n = n["response"]["count"]  # getting number of friends
+        for i in range(0, n, 1000):  # stores 1000 friends and appends to file
+            query = f"https://api.vk.com/method/friends.get?access_token={args.token}&user_id={args.id}&order=name" \
+                    f"&offset={i}&count=1000&fields=country,city,bdate,sex&v=5.131 "
             data = requests.get(query).json()
             f_list = []
             for item in data["response"]["items"]:
@@ -88,7 +91,7 @@ def parse():
         raise SystemExit(e)
     if args.format == "json":
         output = open(f"{args.output}.{args.format}", "a")
-        output.write("]")
+        output.write("]")  # JSON end
         output.close()
     logging.info(f"{args.id} parsed {n} friends")
     print("Parsed")
