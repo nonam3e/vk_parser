@@ -2,28 +2,52 @@ import argparse
 import requests
 import csv
 import json
+import logging
 
+logging.basicConfig(filename='logger.log', filemode='w',
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-def save_as_csv(content, file, format):
-    output = open(f"{file}.{format}", "w", encoding="utf-8")
+def save_as_csv(content, file, fmt, new=True):
+    if new:
+        output = open(f"{file}.{fmt}", "w", encoding="utf-8")
+    else:
+        output = open(f"{file}.{fmt}", "a", encoding="utf-8")
     writer = csv.DictWriter(output, content[0].keys())
-    writer.writeheader()
+    if new:
+        writer.writeheader()
     writer.writerows(content)
     output.close()
 
 
-def save_as_tsv(content, file, format):
-    output = open(f"{file}.{format}", "w", encoding="utf-8")
+def save_as_tsv(content, file, fmt, new=True):
+    if new:
+        output = open(f"{file}.{fmt}", "w", encoding="utf-8")
+    else:
+        output = open(f"{file}.{fmt}", "a", encoding="utf-8")
     writer = csv.DictWriter(output, content[0].keys(), delimiter='\t')
-    writer.writeheader()
+    if new:
+        writer.writeheader()
     writer.writerows(content)
     output.close()
 
 
-def save_as_json(content, file, format):
-    output = open(f"{file}.{format}", "w", encoding="utf-8")
-    json.dump(content, output)
+def save_as_json(content, file, fmt, new=True):
+    if new:
+        output = open(f"{file}.{fmt}", "w", encoding="utf-8")
+        output.write("[\n")
+    else:
+        output = open(f"{file}.{fmt}", "a", encoding="utf-8")
+    for item in content:
+        json.dump(item, output, indent=4, separators=(',', ': '), )
+        output.write(",\n")
     output.close()
+
+
+save = {
+    "csv": save_as_csv,
+    "tsv": save_as_tsv,
+    "json": save_as_json
+}
 
 
 def parse():
@@ -36,20 +60,36 @@ def parse():
                              help="Output file location")
     args = args_parser.parse_args()
     # Use a breakpoint in the code line below to debug your script.
-    query = f"https://api.vk.com/method/friends.get?access_token={args.token}&user_id={args.id}&order=name&fields=country,city,bdate,sex&v=5.131"
-    save = {
-        "csv": save_as_csv,
-        "tsv": save_as_tsv,
-        "json": save_as_json
-    }
-    data = requests.get(query).json()
+
     f_list = []
-    for item in data["response"]["items"]:
-        f_list.append({'first_name': item['first_name'], 'last_name': item['last_name'],
-                       'country': item.get('country', {}).get('title', None),
-                       'city': item.get('city', {}).get('title', None), 'bdate': item.get('bdate', None),
-                       'sex': item['sex']})
-    save[args.format](f_list, args.output, args.format)
+    try:
+        n = requests.get(f"https://api.vk.com/method/friends.get?access_token={args.token}&user_id={args.id}&count=1&v=5.131").json()
+
+        n = n["response"]["count"]
+        for i in range(0, n, 1000):
+            query = f"https://api.vk.com/method/friends.get?access_token={args.token}&user_id={args.id}&order=name&offset={i}&count=1000&fields=country,city,bdate,sex&v=5.131"
+            data = requests.get(query).json()
+            f_list = []
+            for item in data["response"]["items"]:
+                f_list.append({'first_name': item['first_name'], 'last_name': item['last_name'],
+                               'country': item.get('country', {}).get('title', None),
+                               'city': item.get('city', {}).get('title', None), 'bdate': item.get('bdate', None),
+                               'sex': item['sex']})
+            save[args.format](f_list, args.output, args.format, not i)
+    except requests.exceptions.Timeout as e:
+        logging.error("Timeout ", e)
+        raise SystemExit(e)
+    except requests.exceptions.TooManyRedirects as e:
+        logging.error("bad url ", e)
+        raise SystemExit(e)
+    except requests.exceptions.RequestException as e:
+        logging.error(e)
+        raise SystemExit(e)
+    if args.format == "json":
+        output = open(f"{args.output}.{args.format}", "a")
+        output.write("]")
+        output.close()
+    logging.info(f"{args.id} parsed {n} friends")
 
 
 # Press the green button in the gutter to run the script.
