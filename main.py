@@ -14,7 +14,7 @@ def save_as_csv(content, file, format):
 
 def save_as_tsv(content, file, format):
     output = open(f"{file}.{format}", "w", encoding="utf-8")
-    writer = csv.DictWriter(output, content[0].keys(), delimiter='\t', newline='\n')
+    writer = csv.DictWriter(output, content[0].keys(), delimiter='\t')
     writer.writeheader()
     writer.writerows(content)
     output.close()
@@ -43,7 +43,6 @@ def parse():
         "json": save_as_json
     }
     data = requests.get(query).json()
-    print(data)
     f_list = []
     for item in data["response"]["items"]:
         f_list.append({'first_name': item['first_name'], 'last_name': item['last_name'],
