@@ -4,15 +4,16 @@ import csv
 import json
 import logging
 
-logging.basicConfig(filename='logger.log', filemode='w',
+logging.basicConfig(filename='logger.log', filemode='a',
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
 
 def save_as_csv(content, file, fmt, new=True):
     if new:
         output = open(f"{file}.{fmt}", "w", encoding="utf-8")
     else:
         output = open(f"{file}.{fmt}", "a", encoding="utf-8")
-    writer = csv.DictWriter(output, content[0].keys())
+    writer = csv.DictWriter(output, ['first_name', 'last_name', 'country', 'city', 'bdate', 'sex'])
     if new:
         writer.writeheader()
     writer.writerows(content)
@@ -24,7 +25,7 @@ def save_as_tsv(content, file, fmt, new=True):
         output = open(f"{file}.{fmt}", "w", encoding="utf-8")
     else:
         output = open(f"{file}.{fmt}", "a", encoding="utf-8")
-    writer = csv.DictWriter(output, content[0].keys(), delimiter='\t')
+    writer = csv.DictWriter(output, ['first_name', 'last_name', 'country', 'city', 'bdate', 'sex'], delimiter='\t')
     if new:
         writer.writeheader()
     writer.writerows(content)
@@ -51,7 +52,7 @@ save = {
 
 
 def parse():
-    args_parser = argparse.ArgumentParser()
+    args_parser = argparse.ArgumentParser(description="Parses list of friends")
     args_parser.add_argument("token", help="Authorization token")
     args_parser.add_argument("id", help="User id of target")
     args_parser.add_argument("-f", "--format", choices=["csv", "tsv", "json"],
@@ -59,12 +60,12 @@ def parse():
     args_parser.add_argument("-o", "--output", default="report", dest="output",
                              help="Output file location")
     args = args_parser.parse_args()
-    # Use a breakpoint in the code line below to debug your script.
 
-    f_list = []
     try:
         n = requests.get(f"https://api.vk.com/method/friends.get?access_token={args.token}&user_id={args.id}&count=1&v=5.131").json()
-
+        if n.get("error", 0) != 0:
+            logging.warning(n["error"]["error_msg"])
+            raise SystemExit(n["error"]["error_msg"])
         n = n["response"]["count"]
         for i in range(0, n, 1000):
             query = f"https://api.vk.com/method/friends.get?access_token={args.token}&user_id={args.id}&order=name&offset={i}&count=1000&fields=country,city,bdate,sex&v=5.131"
@@ -90,10 +91,8 @@ def parse():
         output.write("]")
         output.close()
     logging.info(f"{args.id} parsed {n} friends")
+    print("Parsed")
 
 
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     parse()
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
