@@ -44,7 +44,7 @@ def save_as_json(content, file, fmt, new=True):
     output.close()
 
 
-# different funcs for different formats makes code flexible
+# different funcs for different formats make code flexible
 save = {
     "csv": save_as_csv,
     "tsv": save_as_tsv,
@@ -60,7 +60,7 @@ def parse():
                              default="csv", dest="format", help="Format of output file")
     args_parser.add_argument("-o", "--output", default="report", dest="output",
                              help="Output file location")
-    args = args_parser.parse_args()
+    args = args_parser.parse_args()  # parsing arguments from command line
 
     try:
         n = requests.get(
